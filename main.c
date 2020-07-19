@@ -141,8 +141,13 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     int scancode;
 
-//    debug_print("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
+    printf("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
     
+// if (down != 1) {
+//        rfbProcessEvents(server, 1000000);
+//    }
+
+
     if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
     {
 	if (key == 0xff1b) {
@@ -245,7 +250,7 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server->kbdAddEvent = keyevent;
     if (enable_touch)
     {
-        server->ptrAddEvent = ptrevent;
+      server->ptrAddEvent = ptrevent;
 //	server->rfbDefaultPtrAddEvent = ptrevent;
     }
 
