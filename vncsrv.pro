@@ -2,7 +2,9 @@ TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
 QT -= gui
-CONFIG += core
+CONFIG  -= QT
+CONFIG -= core
+CONFIG += RELEASE
 
 SOURCES += main.c
 SOURCES += keyboard.c

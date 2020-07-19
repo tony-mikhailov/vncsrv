@@ -137,6 +137,26 @@ static int cnt = 0;
 
 static void update_screen(void);
 
+
+int wait_time(int time_to_wait) // ms
+{
+    static struct timeval now2 = {0, 0}, then = {0, 0};
+    double elapsed, dnow, dthen;
+    gettimeofday(&now2, NULL);
+    
+//    dnow = now.tv_sec + (now.tv_usec / 1000000.0);
+//    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
+    dnow = now2.tv_sec + (now2.tv_usec / 1000000.0);
+    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
+    
+    elapsed = dnow - dthen;
+    if (elapsed > time_to_wait)
+        memcpy((char *)&then, (char *)&now2, sizeof(struct timeval));
+    return elapsed > time_to_wait;
+}
+
+static int pass_update_screen = 1;
+
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     int scancode;
@@ -146,7 +166,6 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     if (down == 1) {
        rfbProcessEvents(server, 1000000);
     }
-
 
     if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
     {
@@ -250,11 +269,11 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server->port = vnc_port;
 
     server->kbdAddEvent = keyevent;
-    if (enable_touch)
-    {
-      server->ptrAddEvent = ptrevent;
+    server->ptrAddEvent = ptrevent;
+//    if (enable_touch)
+//    {
 //	server->rfbDefaultPtrAddEvent = ptrevent;
-    }
+//    }
 
     rfbInitServer(server);
 
@@ -293,6 +312,13 @@ int timeToLogFPS()
 
 static void update_screen(void)
 {
+/*
+if (pass_update_screen == 0 && !timeToLogFPS()) {
+   	info_print("pass_update_screen");
+	pass_update_screen = 1;
+	return;
+   }
+*/
    static int frames = 0;
    frames++;
    if (timeToLogFPS())
@@ -593,11 +619,17 @@ void print_usage(char **argv)
 
 int main(int argc, char **argv)
 {
+    int newfd;
+
+    close(1);
+    newfd = open("/dev/null", O_WRONLY);
+
+
     static int proc_time = 500000;
-    /*	
+    static int fps = 0;    	
     if (argc > 1)
     {
-        int i = 1i;
+        int i = 1;
         while (i < argc)
         {
             if (*argv[i] == '-')
@@ -610,37 +642,18 @@ int main(int argc, char **argv)
                     break;
                 case 'f':
                     i++;
-                    if (argv[i])
-                        strcpy(fb_device, argv[i]);
+                    fps=1;
                     break;
-                case 't':
+                case 's':
                     i++;
-                    if (argv[i])
-                        strcpy(touch_device, argv[i]);
-                    break;
-                case 'k':
-                    i++;
-                    strcpy(kbd_device, argv[i]);
-                    break;
-                case 'p':
-                    i++;
-                    if (argv[i])
-                        vnc_port = atoi(argv[i]);
-                    break;
-                case 'r':
-                    i++;
-                    if (argv[i])
-                        vnc_rotate = atoi(argv[i]);
-                    break;
-                case 'v':
-                    verbose = 1;
+		    fps=0;
                     break;
                 }
             }
             i++;
         }
     }
-    */
+    
 
  //   info_print("Initializing framebuffer device %s...\n", fb_device);
     init_fb();
@@ -678,13 +691,15 @@ int main(int argc, char **argv)
 
     /* Implement our own event loop to detect changes in the framebuffer. */
     proc_time = 500000;
+
     while (1)
     {
         while (server->clientHead == NULL) {
 	   rfbProcessEvents(server, 100000);
 //           printf("clientHead\n");
 	}
-        rfbProcessEvents(server, 330000);
+        rfbProcessEvents(server, (fps == 0 ? 330000 : 50000) );
+        //rfbProcessEvents(server, 10000 );
         //printf("update_screeen\n");
         update_screen();
     }
