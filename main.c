@@ -141,11 +141,11 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     int scancode;
 
-    printf("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
+  //  info_print("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
     
-// if (down != 1) {
-//        rfbProcessEvents(server, 1000000);
-//    }
+    if (down == 1) {
+       rfbProcessEvents(server, 1000000);
+    }
 
 
     if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
@@ -157,6 +157,7 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 	}
 //	printf("inject %d\n", cnt);
     }
+   // info_print("cnt %d\n", cnt);
     ++cnt;
 }
 
@@ -188,8 +189,9 @@ a press and release of button 5.
     {
         if (pressed == 1)
         {
-            injectTouchEvent(MouseDrag, x, y, &scrinfo);
-            printf("Inject MouseDrag: %04x (x=%d, y=%d)\n", buttonMask, x, y);
+            rfbProcessEvents(server, 1000000);
+    //        injectTouchEvent(MouseDrag, x, y, &scrinfo);
+    //        printf("Inject MouseDrag: %04x (x=%d, y=%d)\n", buttonMask, x, y);
         }
         else
         {
@@ -198,7 +200,7 @@ a press and release of button 5.
             pressed_y = y;
 	    
             injectTouchEvent(MousePress, x, y, &scrinfo);
-            printf("Inject MousePress: %04x (x=%d, y=%d)\n", buttonMask, x, y);
+           // printf("Inject MousePress: %04x (x=%d, y=%d)\n", buttonMask, x, y);
         }
     }
     if (buttonMask == 0)
@@ -207,7 +209,7 @@ a press and release of button 5.
         {
             pressed = 0;
             injectTouchEvent(MouseRelease, x, y, &scrinfo);
-            printf("Inject MouseRelease: %04x (x=%d, y=%d)\n", buttonMask, x, y);
+           // printf("Inject MouseRelease: %04x (x=%d, y=%d)\n", buttonMask, x, y);
     //update_screen();
         }
     }
@@ -236,12 +238,12 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server = rfbGetScreen(&argc, argv, scrinfo.xres, scrinfo.yres, BITS_PER_SAMPLE, SAMPLES_PER_PIXEL, rbytespp);
     assert(server != NULL);
 
-    static const char* passwords[4]={"arsie","pwd","1",0};
+    static const char* passwords[4]={"1","pwd","arsie",0};
     
     server->authPasswdData = (void*)passwords;
     server->passwordCheck=rfbCheckPasswordByList;
 
-    server->desktopName = "doom2OnSMH4";
+    server->desktopName = "Mikhailov's vncsrv";
     server->frameBuffer = (char *)vncbuf;
     server->alwaysShared = TRUE;
     server->httpDir = NULL;
