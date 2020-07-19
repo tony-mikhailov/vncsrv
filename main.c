@@ -145,7 +145,11 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     
     if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
     {
-        injectKeyEvent(scancode, down);
+	if (key == 0xff1b) {
+	    injectKeyEvent(1, down);
+	} else {
+            injectKeyEvent(scancode, down);
+	}
 //	printf("inject %d\n", cnt);
     }
     ++cnt;
@@ -226,6 +230,10 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     /* TODO: This assumes scrinfo.bits_per_pixel is 16. */
     server = rfbGetScreen(&argc, argv, scrinfo.xres, scrinfo.yres, BITS_PER_SAMPLE, SAMPLES_PER_PIXEL, rbytespp);
     assert(server != NULL);
+
+    static const char* passwords[5]={"arsie", "lordn", "pwd","1",0};
+    server->authPasswdData = (void*)passwords;
+    server->passwordCheck=rfbCheckPasswordByList;
 
     server->desktopName = "doom2OnSMH4";
     server->frameBuffer = (char *)vncbuf;
