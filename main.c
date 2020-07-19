@@ -231,7 +231,8 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server = rfbGetScreen(&argc, argv, scrinfo.xres, scrinfo.yres, BITS_PER_SAMPLE, SAMPLES_PER_PIXEL, rbytespp);
     assert(server != NULL);
 
-    static const char* passwords[5]={"arsie", "lordn", "pwd","1",0};
+    static const char* passwords[4]={"arsie","pwd","1",0};
+    
     server->authPasswdData = (void*)passwords;
     server->passwordCheck=rfbCheckPasswordByList;
 
