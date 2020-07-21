@@ -53,6 +53,7 @@ static char kbd_device[256] = "/dev/input/kbd";
 
 static struct fb_var_screeninfo scrinfo;
 static int fbfd = -1;
+static int kbdfd = -1;
 static unsigned short int *fbmmap = MAP_FAILED;
 static unsigned short int *vncbuf;
 static unsigned short int *fbbuf;
@@ -155,22 +156,103 @@ int wait_time(int time_to_wait) // ms
     return elapsed > time_to_wait;
 }
 
+
 static int pass_update_screen = 1;
+
+
+void injectKeyEvent2(uint16_t code, uint16_t code2, uint16_t value)
+{
+struct input_event ev,ev2;
+//statiic int kbdfd;
+memset(&ev, 0, sizeof(ev));
+memset(&ev2, 0, sizeof(ev2));
+
+/* Send the key command */
+gettimeofday(&ev.time, 0);
+ev2.time = ev.time;
+ev.type  = EV_KEY;
+ev.code  = 106;
+ev.value = 1;
+if(write(kbdfd, &ev, sizeof(ev)) < 0)
+{
+    info_print("write event failed, %s\n", strerror(errno));
+}
+
+ev2.time = ev.time;
+ev.type  = EV_KEY;
+ev.code  = 105;
+ev.value = 1;
+if(write(kbdfd, &ev2, sizeof(ev2)) < 0)
+{
+    info_print("write event failed, %s\n", strerror(errno));
+}
+/* Then send the SYN */
+ev.time = ev2.time;
+ev.type  = EV_SYN;
+ev.code  = 0;
+ev.value = 0;
+if(write(kbdfd, &ev, sizeof(ev)) < 0)
+{
+    info_print("write event failed, %s\n", strerror(errno));
+}
+
+
+
+//
+//Event:  type 1 (EV_KEY), code 106 (KEY_RIGHT), value 0
+//Event:  type 4 (EV_MSC), code 4 (MSC_SCAN), value 8b
+//
+//gettimeofday(&ev.time, 0);
+
+
+ev2.type  = EV_MSC;
+ev2.code  = MSC_SCAN;
+ev2.value = 0x8b;
+if(write(kbdfd, &ev2, sizeof(ev2)) < 0)
+{
+    info_print("write event2 failed, %s\n", strerror(errno));
+}
+
+/* Then send the SYN 
+ev.time = ev2.time;
+ev.type  = EV_SYN;
+ev.code  = 0;
+ev.value = 0;
+if(write(kbdfd, &ev, sizeof(ev)) < 0)
+{
+    info_print("write event failed, %s\n", strerror(errno));
+}
+*/
+info_print("injectKey (%d, %d, %d)\n", code, code2, value);
+}
 
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     int scancode;
 
-  //  info_print("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
-    
-    if (down == 1) {
-       rfbProcessEvents(server, 1000000);
-    }
+//    
+//    if (down == 1) {
+//       rfbProcessEvents(server, 1000000);
+//    }
 
-    if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
+
+
+    scancode = keysym2scancode(key, cl);
+    info_print("Got keysym: %04x(%d) (down=%d)  (scancode=%d)\n", (unsigned int)key, (int)key, (int)down, scancode);
+    injectKeyEvent2(106, 4, 0);
+
+    if (1 & scancode & (cnt % 100)  ) 
     {
 	if (key == 0xff1b) {
 	    injectKeyEvent(1, down);
+	} else if (key == 0x0071) {
+	    injectKeyEvent2(106, 4, 0);
+	    
+	   // injectKeyEvent(KEY_LEFT, 1);
+	   // injectKeyEvent(KEY_RIGHT, 1);
+	    //injectKeyEvent2(65361, 65363, down);
+	    //injectKeyEvent2(46, down);
+
 	} else {
             injectKeyEvent(scancode, down);
 	}
@@ -659,7 +741,7 @@ int main(int argc, char **argv)
     init_fb();
     if (strlen(kbd_device) > 0)
     {
-        int ret = init_kbd(kbd_device);
+        kbdfd  = init_kbd(kbd_device);
  //       if (!ret)
  //           info_print("Keyboard device %s not available.\n", kbd_device);
     }
