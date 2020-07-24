@@ -241,12 +241,13 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     info_print("Got keysym: %04x(%d) (down=%d)  (scancode=%d)\n", (unsigned int)key, (int)key, (int)down, scancode);
     injectKeyEvent2(106, 4, 0);
 
-    if (1 & scancode & (cnt % 100)  ) 
+    if (scancode & (cnt % 100)  ) 
     {
 	if (key == 0xff1b) {
 	    injectKeyEvent(1, down);
 	} else if (key == 0x0071) {
-	    injectKeyEvent2(106, 4, 0);
+ 	    injectKeyEventSeq(106, 1);
+            printf("!!!");
 	    
 	   // injectKeyEvent(KEY_LEFT, 1);
 	   // injectKeyEvent(KEY_RIGHT, 1);

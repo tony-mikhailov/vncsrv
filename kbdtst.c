@@ -23,8 +23,9 @@
 #include "keyboard.h"
 #include "logging.h"
 
-//static char KBD_DEVICE[256] = "/dev/input/event1";
+static char KBD_DEVICE[256] = "/dev/input/kbd";
 static int kbdfd = -1;
+
 
 int init_kbd(const char *kbd_device)
 {
@@ -54,7 +55,7 @@ void injectKeyEventSeq(uint16_t code, uint16_t value)
     memset(&ev, 0, sizeof(ev));
 
     gettimeofday(&ev.time, 0);
-
+    
     ev.type = EV_KEY;
     ev.code = 106;
     ev.value = value;
@@ -69,6 +70,9 @@ void injectKeyEventSeq(uint16_t code, uint16_t value)
       printf("write event failed, %s\n", strerror(errno));
     }
 
+
+
+    // Finally send the SYN
     gettimeofday(&ev.time, 0);
     ev.type = EV_SYN;
     ev.code = 0;
@@ -78,34 +82,6 @@ void injectKeyEventSeq(uint16_t code, uint16_t value)
     }
 
     printf("injectKey (%d, %d)\n", code, value);
-}
-
-
-void injectKeyEvent(uint16_t code, uint16_t value)
-{
-    struct input_event ev;
-    memset(&ev, 0, sizeof(ev));
-
-    gettimeofday(&ev.time, 0);
-    ev.type = EV_KEY;
-    ev.code = code;
-    ev.value = value;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0)
-    {
-        error_print("write event failed, %s\n", strerror(errno));
-    }
-
-    // Finally send the SYN
-    gettimeofday(&ev.time, 0);
-    ev.type = EV_SYN;
-    ev.code = 0;
-    ev.value = 0;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0)
-    {
-        error_print("write event failed, %s\n", strerror(errno));
-    }
-
-    debug_print("injectKey (%d, %d)\n", code, value);
 }
 
 int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
@@ -204,10 +180,20 @@ int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
             scancode = KEY_F4;
             break; // F8
         case 0xFFC8:
-            rfbShutdownServer(cl->screen, TRUE);
+            //rfbShutdownServer(cl->screen, TRUE);
             break; // F11
         }
     }
 
     return scancode;
+}
+
+
+int main(int argc, char** argv) {
+  	
+	init_kbd(KBD_DEVICE);
+	injectKeyEvent(106, 1);
+	
+//	injectKeyEvent(106, 0);
+	return 0;
 }
