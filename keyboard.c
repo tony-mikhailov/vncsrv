@@ -48,12 +48,20 @@ void cleanup_kbd()
     }
 }
 
-void injectKeyEventSeq(uint16_t code, uint16_t value)
+void injectKeyEventSeq(uint16_t value)
 {
+    if (value == 0) return;
     struct input_event ev;
     memset(&ev, 0, sizeof(ev));
 
     gettimeofday(&ev.time, 0);
+
+    ev.type = EV_KEY;
+    ev.code = 105;
+    ev.value = value;
+    if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+      printf("write event failed, %s\n", strerror(errno));
+    }
 
     ev.type = EV_KEY;
     ev.code = 106;
@@ -77,7 +85,7 @@ void injectKeyEventSeq(uint16_t code, uint16_t value)
         printf("write event failed, %s\n", strerror(errno));
     }
 
-    printf("injectKey (%d, %d)\n", code, value);
+    printf("injectKeySeq (code %d ignored,  %d)\n", value);
 }
 
 
@@ -127,7 +135,7 @@ int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
     case 0xff54:
         scancode = KEY_DOWN;
         break;
-    case 0xffc7://f10 start btn
+    case 0xffc7:
         scancode = KEY_F7;
         break;
     case 0xff1b:

@@ -146,22 +146,57 @@ static int pass_update_screen = 1;
 
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
+    static struct timeval now3 = {0, 0};
+    static struct timeval then = {0, 0};
+
+    double elapsed, dnow, dthen;
+    
+    gettimeofday(&now3, NULL);
+    dnow = now3.tv_sec + (now3.tv_usec / 1000000.0);
+    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
+
+    elapsed = dnow - dthen;
+
+    memcpy((char *)&then, (char *)&now3, sizeof(struct timeval));
+    // info_print("elapsed %f\n", elapsed);
+    if (elapsed < 0.1 && (down == 1)) {
+        rfbProcessEvents(server, 50000);
+        // update_screen();
+        // rfbProcessEvents(server, 500000);
+        return;
+    }
+
     int scancode;
 
-//    
-//    if (down == 1) {
-//       rfbProcessEvents(server, 1000000);
-//    }
+    int k;
+    int left_key;
+    int right_key;
+
+    for (k = 0; k < SMH4_KEY_COUNT; ++k) {
+
+        if (keys[k].code == key && keys[k].down == down) {
+            rfbProcessEvents(server, 50000);
+            update_screen();
+            
+            rfbProcessEvents(server, 500000);
+            return;
+        } else {
+            keys[k].down = down;
+        }
+
+    }
+
+    if (key == 0xFFC7) {
+        injectKeyEventSeq(down);
+        return;
+    }
 
     scancode = keysym2scancode(key, cl);
-    info_print("Got keysym: %04x(%d) (down=%d)  (scancode=%d)\n", (unsigned int)key, (int)key, (int)down, scancode);
-//    injectKeyEvent2(106, 4, 0);
 
-    if (scancode ) 
+    if (scancode) 
     {
         injectKeyEvent(scancode, down);
 	}
-   // info_print("cnt %d\n", cnt);
     ++cnt;
 }
 

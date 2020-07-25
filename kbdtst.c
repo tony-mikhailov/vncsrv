@@ -49,7 +49,7 @@ void cleanup_kbd()
     }
 }
 
-void injectKeyEventSeq(uint16_t code, uint16_t value)
+void injectKeyEventSeq(uint16_t value)
 {
     struct input_event ev;
     memset(&ev, 0, sizeof(ev));
@@ -81,7 +81,7 @@ void injectKeyEventSeq(uint16_t code, uint16_t value)
         printf("write event failed, %s\n", strerror(errno));
     }
 
-    printf("injectKey (%d, %d)\n", code, value);
+    printf("injectKey (%d)\n", value);
 }
 
 int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
