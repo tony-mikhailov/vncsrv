@@ -1,0 +1,5 @@
+#!/bin/bash
+
+
+arm-linux-gnueabihf-gcc -o kbdtst -I. -I../qt/5.9.4/armhf/include -I../qt/5.9.4/armhf/include/QtCore -I. -I/usr/arm-linux-gnueabihf/include -I../graphics-sdk/include/OGLES2 -I../qt/5.9.4/armhf/mkspecs/devices/linux-smh4-g++ -Wl,-O1 -Wl,-rpath,/home/build/qt/5.9.4/armhf/lib -Llib -lvncserver -lresolv -lz -lgnutls -lgnutlsxx -lgnutls-openssl -lgcrypt -ljpeg -lgpg-error -ltasn1 -lp11 -lp11-kit -lnettle -lhogweed -lgmp -lgmpxx -lffi -L/home/build/qt/5.9.4/armhf/lib -lpthread kbdtst.c 
+

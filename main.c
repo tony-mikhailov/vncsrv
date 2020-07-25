@@ -6,13 +6,13 @@
  * Free Software Foundation; either version 2, or (at your option) any
  * later version.
  *
- *rfbDefaultPtrAddEventrfbDefaultPtrAddEvent This program is distributed in the hope that it will be useful, but
+ *This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
  * This project is an adaptation of the original fbvncserver for the iPAQ
- * and Zaurus.
+ * and Zaurus and then rewrited by Anton Mikhailov for SMH4, TRIM5, MATRIX industrial PLCs.
  */
 
 #include <stdio.h>
@@ -41,7 +41,7 @@
 #include "keyboard.h"
 #include "logging.h"
 
-/*****************************************************************************/
+
 #define LOG_FPS
 
 #define BITS_PER_SAMPLE 5
@@ -53,6 +53,7 @@ static char kbd_device[256] = "/dev/input/kbd";
 
 static struct fb_var_screeninfo scrinfo;
 static int fbfd = -1;
+static int kbdfd = -1;
 static unsigned short int *fbmmap = MAP_FAILED;
 static unsigned short int *vncbuf;
 static unsigned short int *fbbuf;
@@ -67,8 +68,6 @@ int verbose = 0;
 
 #define UNUSED(x) (void)(x)
 
-/* No idea, just copied from fbvncserver as part of the frame differerencing
- * algorithm.  I will probably be later rewriting all of this. */
 static struct varblock_t
 {
     int min_i;
@@ -82,8 +81,6 @@ static struct varblock_t
     int rfb_maxy;
 } varblock;
 
-/*****************************************************************************/
-
 static void init_fb(void)
 {
     size_t pixels;
@@ -93,6 +90,7 @@ static void init_fb(void)
         error_print("cannot open fb device %s\n", fb_device);
         exit(EXIT_FAILURE);
     }
+
 
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &scrinfo) != 0)
     {
@@ -104,17 +102,6 @@ static void init_fb(void)
     bytespp = scrinfo.bits_per_pixel / 8;
     bits_per_pixel = scrinfo.bits_per_pixel;
     frame_size = pixels * bits_per_pixel / 8;
-/*
-    info_print("  xres=%d, yres=%d, xresv=%d, yresv=%d, xoffs=%d, yoffs=%d, bpp=%d\n",
-               (int)scrinfo.xres, (int)scrinfo.yres,
-               (int)scrinfo.xres_virtual, (int)scrinfo.yres_virtual,
-               (int)scrinfo.xoffset, (int)scrinfo.yoffset,
-               (int)scrinfo.bits_per_pixel);
-    info_print("  offset:length red=%d:%d green=%d:%d blue=%d:%d \n",
-               (int)scrinfo.red.offset, (int)scrinfo.red.length,
-               (int)scrinfo.green.offset, (int)scrinfo.green.length,
-               (int)scrinfo.blue.offset, (int)scrinfo.blue.length);
-*/
     fbmmap = mmap(NULL, frame_size, PROT_READ, MAP_SHARED, fbfd, 0);
 
     if (fbmmap == MAP_FAILED)
@@ -137,7 +124,6 @@ static int cnt = 0;
 
 static void update_screen(void);
 
-
 int wait_time(int time_to_wait) // ms
 {
     static struct timeval now2 = {0, 0}, then = {0, 0};
@@ -157,26 +143,60 @@ int wait_time(int time_to_wait) // ms
 
 static int pass_update_screen = 1;
 
+
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
+    static struct timeval now3 = {0, 0};
+    static struct timeval then = {0, 0};
+
+    double elapsed, dnow, dthen;
+    
+    gettimeofday(&now3, NULL);
+    dnow = now3.tv_sec + (now3.tv_usec / 1000000.0);
+    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
+
+    elapsed = dnow - dthen;
+
+    memcpy((char *)&then, (char *)&now3, sizeof(struct timeval));
+    // info_print("elapsed %f\n", elapsed);
+    if (elapsed < 0.1 && (down == 1)) {
+        rfbProcessEvents(server, 50000);
+        // update_screen();
+        // rfbProcessEvents(server, 500000);
+        return;
+    }
+
     int scancode;
 
-  //  info_print("Got keysym: %04x (down=%d)\n", (unsigned int)key, (int)down);
-    
-    if (down == 1) {
-       rfbProcessEvents(server, 1000000);
+    int k;
+    int left_key;
+    int right_key;
+
+    for (k = 0; k < SMH4_KEY_COUNT; ++k) {
+
+        if (keys[k].code == key && keys[k].down == down) {
+            rfbProcessEvents(server, 50000);
+            update_screen();
+            
+            rfbProcessEvents(server, 500000);
+            return;
+        } else {
+            keys[k].down = down;
+        }
+
     }
 
-    if ((scancode = keysym2scancode(key, cl)) & (cnt % 100)  ) 
-    {
-	if (key == 0xff1b) {
-	    injectKeyEvent(1, down);
-	} else {
-            injectKeyEvent(scancode, down);
-	}
-//	printf("inject %d\n", cnt);
+    if (key == 0xFFC7) {
+        injectKeyEventSeq(down);
+        return;
     }
-   // info_print("cnt %d\n", cnt);
+
+    scancode = keysym2scancode(key, cl);
+
+    if (scancode) 
+    {
+        injectKeyEvent(scancode, down);
+	}
     ++cnt;
 }
 
@@ -659,7 +679,7 @@ int main(int argc, char **argv)
     init_fb();
     if (strlen(kbd_device) > 0)
     {
-        int ret = init_kbd(kbd_device);
+        kbdfd  = init_kbd(kbd_device);
  //       if (!ret)
  //           info_print("Keyboard device %s not available.\n", kbd_device);
     }
