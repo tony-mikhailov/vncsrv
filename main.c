@@ -6,13 +6,13 @@
  * Free Software Foundation; either version 2, or (at your option) any
  * later version.
  *
- *rfbDefaultPtrAddEventrfbDefaultPtrAddEvent This program is distributed in the hope that it will be useful, but
+ *This program is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
  * This project is an adaptation of the original fbvncserver for the iPAQ
- * and Zaurus.
+ * and Zaurus and then rewrited by Anton Mikhailov for SMH4, TRIM5, MATRIX industrial PLCs.
  */
 
 #include <stdio.h>
@@ -41,7 +41,7 @@
 #include "keyboard.h"
 #include "logging.h"
 
-/*****************************************************************************/
+
 #define LOG_FPS
 
 #define BITS_PER_SAMPLE 5
@@ -68,8 +68,6 @@ int verbose = 0;
 
 #define UNUSED(x) (void)(x)
 
-/* No idea, just copied from fbvncserver as part of the frame differerencing
- * algorithm.  I will probably be later rewriting all of this. */
 static struct varblock_t
 {
     int min_i;
@@ -83,8 +81,6 @@ static struct varblock_t
     int rfb_maxy;
 } varblock;
 
-/*****************************************************************************/
-
 static void init_fb(void)
 {
     size_t pixels;
@@ -94,6 +90,7 @@ static void init_fb(void)
         error_print("cannot open fb device %s\n", fb_device);
         exit(EXIT_FAILURE);
     }
+
 
     if (ioctl(fbfd, FBIOGET_VSCREENINFO, &scrinfo) != 0)
     {
@@ -105,17 +102,6 @@ static void init_fb(void)
     bytespp = scrinfo.bits_per_pixel / 8;
     bits_per_pixel = scrinfo.bits_per_pixel;
     frame_size = pixels * bits_per_pixel / 8;
-/*
-    info_print("  xres=%d, yres=%d, xresv=%d, yresv=%d, xoffs=%d, yoffs=%d, bpp=%d\n",
-               (int)scrinfo.xres, (int)scrinfo.yres,
-               (int)scrinfo.xres_virtual, (int)scrinfo.yres_virtual,
-               (int)scrinfo.xoffset, (int)scrinfo.yoffset,
-               (int)scrinfo.bits_per_pixel);
-    info_print("  offset:length red=%d:%d green=%d:%d blue=%d:%d \n",
-               (int)scrinfo.red.offset, (int)scrinfo.red.length,
-               (int)scrinfo.green.offset, (int)scrinfo.green.length,
-               (int)scrinfo.blue.offset, (int)scrinfo.blue.length);
-*/
     fbmmap = mmap(NULL, frame_size, PROT_READ, MAP_SHARED, fbfd, 0);
 
     if (fbmmap == MAP_FAILED)
@@ -138,7 +124,6 @@ static int cnt = 0;
 
 static void update_screen(void);
 
-
 int wait_time(int time_to_wait) // ms
 {
     static struct timeval now2 = {0, 0}, then = {0, 0};
@@ -156,75 +141,8 @@ int wait_time(int time_to_wait) // ms
     return elapsed > time_to_wait;
 }
 
-
 static int pass_update_screen = 1;
 
-
-void injectKeyEvent2(uint16_t code, uint16_t code2, uint16_t value)
-{
-struct input_event ev,ev2;
-//statiic int kbdfd;
-memset(&ev, 0, sizeof(ev));
-memset(&ev2, 0, sizeof(ev2));
-
-/* Send the key command */
-gettimeofday(&ev.time, 0);
-ev2.time = ev.time;
-ev.type  = EV_KEY;
-ev.code  = 106;
-ev.value = 1;
-if(write(kbdfd, &ev, sizeof(ev)) < 0)
-{
-    info_print("write event failed, %s\n", strerror(errno));
-}
-
-ev2.time = ev.time;
-ev.type  = EV_KEY;
-ev.code  = 105;
-ev.value = 1;
-if(write(kbdfd, &ev2, sizeof(ev2)) < 0)
-{
-    info_print("write event failed, %s\n", strerror(errno));
-}
-/* Then send the SYN */
-ev.time = ev2.time;
-ev.type  = EV_SYN;
-ev.code  = 0;
-ev.value = 0;
-if(write(kbdfd, &ev, sizeof(ev)) < 0)
-{
-    info_print("write event failed, %s\n", strerror(errno));
-}
-
-
-
-//
-//Event:  type 1 (EV_KEY), code 106 (KEY_RIGHT), value 0
-//Event:  type 4 (EV_MSC), code 4 (MSC_SCAN), value 8b
-//
-//gettimeofday(&ev.time, 0);
-
-
-ev2.type  = EV_MSC;
-ev2.code  = MSC_SCAN;
-ev2.value = 0x8b;
-if(write(kbdfd, &ev2, sizeof(ev2)) < 0)
-{
-    info_print("write event2 failed, %s\n", strerror(errno));
-}
-
-/* Then send the SYN 
-ev.time = ev2.time;
-ev.type  = EV_SYN;
-ev.code  = 0;
-ev.value = 0;
-if(write(kbdfd, &ev, sizeof(ev)) < 0)
-{
-    info_print("write event failed, %s\n", strerror(errno));
-}
-*/
-info_print("injectKey (%d, %d, %d)\n", code, code2, value);
-}
 
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
@@ -235,30 +153,14 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 //       rfbProcessEvents(server, 1000000);
 //    }
 
-
-
     scancode = keysym2scancode(key, cl);
     info_print("Got keysym: %04x(%d) (down=%d)  (scancode=%d)\n", (unsigned int)key, (int)key, (int)down, scancode);
-    injectKeyEvent2(106, 4, 0);
+//    injectKeyEvent2(106, 4, 0);
 
-    if (scancode & (cnt % 100)  ) 
+    if (scancode ) 
     {
-	if (key == 0xff1b) {
-	    injectKeyEvent(1, down);
-	} else if (key == 0x0071) {
- 	    injectKeyEventSeq(106, 1);
-            printf("!!!");
-	    
-	   // injectKeyEvent(KEY_LEFT, 1);
-	   // injectKeyEvent(KEY_RIGHT, 1);
-	    //injectKeyEvent2(65361, 65363, down);
-	    //injectKeyEvent2(46, down);
-
-	} else {
-            injectKeyEvent(scancode, down);
+        injectKeyEvent(scancode, down);
 	}
-//	printf("inject %d\n", cnt);
-    }
    // info_print("cnt %d\n", cnt);
     ++cnt;
 }
