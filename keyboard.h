@@ -7,7 +7,7 @@ int init_kbd(const char *);
 void cleanup_kbd();
 
 void injectKeyEvent(uint16_t, uint16_t);
-void injectKeyEventSeq(uint16_t);
+void injectKeyEventSeq(uint16_t, int trim5);
 int keysym2scancode(rfbKeySym key, rfbClientPtr cl);
 
 static const int SMH4_KEY_COUNT = 13;

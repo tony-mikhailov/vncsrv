@@ -48,44 +48,82 @@ void cleanup_kbd()
     }
 }
 
-void injectKeyEventSeq(uint16_t value)
+void injectKeyEventSeq(uint16_t value, int trim5)
 {
+
     if (value == 0) return;
-    struct input_event ev;
-    memset(&ev, 0, sizeof(ev));
 
-    gettimeofday(&ev.time, 0);
+    if (trim5 == 1) {
+        struct input_event ev;
+        memset(&ev, 0, sizeof(ev));
 
-    ev.type = EV_KEY;
-    ev.code = 105;
-    ev.value = value;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0) {
-      printf("write event failed, %s\n", strerror(errno));
-    }
+        gettimeofday(&ev.time, 0);
 
-    ev.type = EV_KEY;
-    ev.code = 106;
-    ev.value = value;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0) {
-      printf("write event failed, %s\n", strerror(errno));
-    }
-
-    ev.type = EV_MSC;
-    ev.code = MSC_SCAN;
-    ev.value = 0x8b;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0) {
-      printf("write event failed, %s\n", strerror(errno));
-    }
-
-    gettimeofday(&ev.time, 0);
-    ev.type = EV_SYN;
-    ev.code = 0;
-    ev.value = 0;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        ev.type = EV_KEY;
+        ev.code = KEY_F1;
+        ev.value = value;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
         printf("write event failed, %s\n", strerror(errno));
+        }
+
+        ev.type = EV_KEY;
+        ev.code = KEY_F4;
+        ev.value = value;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        printf("write event failed, %s\n", strerror(errno));
+        }
+
+        ev.type = EV_MSC;
+        ev.code = MSC_SCAN;
+        ev.value = 0x8b;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        printf("write event failed, %s\n", strerror(errno));
+        }
+
+        gettimeofday(&ev.time, 0);
+        ev.type = EV_SYN;
+        ev.code = 0;
+        ev.value = 0;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+            printf("write event failed, %s\n", strerror(errno));
+        }
+
+    } else {
+        struct input_event ev;
+        memset(&ev, 0, sizeof(ev));
+
+        gettimeofday(&ev.time, 0);
+
+        ev.type = EV_KEY;
+        ev.code = 105;
+        ev.value = value;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        printf("write event failed, %s\n", strerror(errno));
+        }
+
+        ev.type = EV_KEY;
+        ev.code = 106;
+        ev.value = value;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        printf("write event failed, %s\n", strerror(errno));
+        }
+
+        ev.type = EV_MSC;
+        ev.code = MSC_SCAN;
+        ev.value = 0x8b;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+        printf("write event failed, %s\n", strerror(errno));
+        }
+
+        gettimeofday(&ev.time, 0);
+        ev.type = EV_SYN;
+        ev.code = 0;
+        ev.value = 0;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0) {
+            printf("write event failed, %s\n", strerror(errno));
+        }
     }
 
-    printf("injectKeySeq (code %d ignored,  %d)\n", value);
 }
 
 

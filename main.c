@@ -64,6 +64,7 @@ static rfbScreenInfoPtr server;
 static size_t bytespp;
 static unsigned int bits_per_pixel;
 static unsigned int frame_size;
+static int trim5 = 0;
 int verbose = 0;
 
 #define UNUSED(x) (void)(x)
@@ -187,7 +188,7 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     }
 
     if (key == 0xFFC7) {
-        injectKeyEventSeq(down);
+        injectKeyEventSeq(down, trim5);
         return;
     }
 
@@ -515,9 +516,7 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                 }
             }
         }
-    }
-    else if (bits_per_pixel == 16)
-    {
+    } else if (bits_per_pixel == 16) {
         uint16_t *f = (uint16_t *)fbmmap; /* -> framebuffer         */
         uint16_t *c = (uint16_t *)fbbuf;  /* -> compare framebuffer */
         uint16_t *r = (uint16_t *)vncbuf; /* -> remote framebuffer  */
@@ -539,8 +538,7 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
             break;
         }
 
-        if (memcmp(fbmmap, fbbuf, frame_size) != 0)
-        {
+        if (memcmp(fbmmap, fbbuf, frame_size) != 0) {
             int y;
             for (y = 0; y < (int)scrinfo.yres; y++)
             {
@@ -602,26 +600,16 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                 }
             }
         }
-    }
-    else
-    {
-	//error_print("not supported color depth or rotation\n");
+    } else {
         exit(EXIT_FAILURE);
     }
 
-    if (varblock.min_i < 9999)
-    {
+    if (varblock.min_i < 9999) {
         if (varblock.max_i < 0)
             varblock.max_i = varblock.min_i;
 
         if (varblock.max_j < 0)
             varblock.max_j = varblock.min_j;
-/*
-        debug_print("Dirty page: %dx%d+%d+%d...\n",
-                    (varblock.max_i + 2) - varblock.min_i, (varblock.max_j + 1) - varblock.min_j,
-                    varblock.min_i, varblock.min_j);
-*
-*/
 	
         rfbMarkRectAsModified(server, varblock.min_i, varblock.min_j,
                               varblock.max_i + 2, varblock.max_j + 1);
@@ -630,7 +618,6 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
     }
 }
 
-/*****************************************************************************/
 
 void print_usage(char **argv)
 {
@@ -666,7 +653,11 @@ int main(int argc, char **argv)
                     break;
                 case 's':
                     i++;
-		    fps=0;
+                    fps=0;
+                    break;
+                case 't':
+                    i++;
+                    trim5 = 1;
                     break;
                 }
             }
@@ -675,56 +666,28 @@ int main(int argc, char **argv)
     }
     
 
- //   info_print("Initializing framebuffer device %s...\n", fb_device);
     init_fb();
-    if (strlen(kbd_device) > 0)
-    {
+    if (strlen(kbd_device) > 0) {
         kbdfd  = init_kbd(kbd_device);
- //       if (!ret)
- //           info_print("Keyboard device %s not available.\n", kbd_device);
-    }
-    else
-    {
-//        info_print("No keyboard device\n");
-    }
-
+     }
+ 
     rfbBool enable_touch = FALSE;
-    if (strlen(touch_device) > 0)
-    {
-        // init touch only if there is a touch device defined
+    if (strlen(touch_device) > 0) {
         int ret = init_touch(touch_device, vnc_rotate);
         enable_touch = (ret > 0);
     }
-    else
-    {
-//        info_print("No touch device\n");
-    }
-/*
-    info_print("Initializing VNC server:\n");
-    info_print("	width:  %d\n", (int)scrinfo.xres);
-    info_print("	height: %d\n", (int)scrinfo.yres);
-    info_print("	bpp:    %d\n", (int)scrinfo.bits_per_pixel);
-    info_print("	port:   %d\n", (int)vnc_port);
-    info_print("	rotate: %d\n", (int)vnc_rotate);
- */  
     init_fb_server(argc, argv, enable_touch);
 
-    /* Implement our own event loop to detect changes in the framebuffer. */
     proc_time = 500000;
 
-    while (1)
-    {
+    for(;;) {
         while (server->clientHead == NULL) {
-	   rfbProcessEvents(server, 100000);
-//           printf("clientHead\n");
-	}
+           rfbProcessEvents(server, 100000);
+        }
         rfbProcessEvents(server, (fps == 0 ? 330000 : 50000) );
-        //rfbProcessEvents(server, 10000 );
-        //printf("update_screeen\n");
         update_screen();
     }
 
-   // info_print("Cleaning up...\n");
     cleanup_fb();
     cleanup_kbd();
     cleanup_touch();
