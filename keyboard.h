@@ -1,8 +1,6 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#pragma once
-
 int init_kbd(const char *);
 void cleanup_kbd();
 
