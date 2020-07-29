@@ -12,7 +12,10 @@
  * General Public License for more details.
  *
  * This project is an adaptation of the original fbvncserver for the iPAQ
- * and Zaurus and then rewrited by Anton Mikhailov for SMH4, TRIM5, MATRIX industrial PLCs.
+ * and Zaurus and then 
+ * rewrited by Anton Mikhailov for SMH4, TRIM5, MATRIX by Segnetics industrial PLCs.
+ * 
+ * 07/2020
  */
 
 #include <stdio.h>
@@ -24,7 +27,7 @@
 #include <sys/ioctl.h>
 
 #include <sys/stat.h>
-#include <sys/sysmacros.h> /* For makedev() */
+#include <sys/sysmacros.h> 
 
 #include <fcntl.h>
 #include <linux/fb.h>
@@ -33,7 +36,7 @@
 #include <assert.h>
 #include <errno.h>
 
-/* libvncserver */
+
 #include "rfb/rfb.h"
 #include "rfb/keysym.h"
 
@@ -64,6 +67,7 @@ static rfbScreenInfoPtr server;
 static size_t bytespp;
 static unsigned int bits_per_pixel;
 static unsigned int frame_size;
+static int trim5 = 0;
 int verbose = 0;
 
 #define UNUSED(x) (void)(x)
@@ -130,8 +134,6 @@ int wait_time(int time_to_wait) // ms
     double elapsed, dnow, dthen;
     gettimeofday(&now2, NULL);
     
-//    dnow = now.tv_sec + (now.tv_usec / 1000000.0);
-//    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
     dnow = now2.tv_sec + (now2.tv_usec / 1000000.0);
     dthen = then.tv_sec + (then.tv_usec / 1000000.0);
     
@@ -143,26 +145,22 @@ int wait_time(int time_to_wait) // ms
 
 static int pass_update_screen = 1;
 
-
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
     static struct timeval now3 = {0, 0};
-    static struct timeval then = {0, 0};
+    static struct timeval then3 = {0, 0};
 
     double elapsed, dnow, dthen;
     
     gettimeofday(&now3, NULL);
     dnow = now3.tv_sec + (now3.tv_usec / 1000000.0);
-    dthen = then.tv_sec + (then.tv_usec / 1000000.0);
+    dthen = then3.tv_sec + (then3.tv_usec / 1000000.0);
 
     elapsed = dnow - dthen;
 
-    memcpy((char *)&then, (char *)&now3, sizeof(struct timeval));
-    // info_print("elapsed %f\n", elapsed);
+    memcpy((char *)&then3, (char *)&now3, sizeof(struct timeval));
     if (elapsed < 0.1 && (down == 1)) {
         rfbProcessEvents(server, 50000);
-        // update_screen();
-        // rfbProcessEvents(server, 500000);
         return;
     }
 
@@ -187,7 +185,7 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     }
 
     if (key == 0xFFC7) {
-        injectKeyEventSeq(down);
+        injectKeyEventSeq(down, trim5);
         return;
     }
 
@@ -203,34 +201,19 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
 {
     UNUSED(cl);
-    /* Indicates either pointer movement or a pointer button press or release. The pointer is
-now at (x-position, y-position), and the current state of buttons 1 to 8 are represented
-by bits 0 to 7 of button-mask respectively, 0 meaning up, 1 meaning down (pressed).
-On a conventional mouse, buttons 1, 2 and 3 correspond to the left, middle and right
-buttons on the mouse. On a wheel mouse, each step of the wheel upwards is represented
-by a press and release of button 4, and each step downwards is represented by
-a press and release of button 5.
-  From: http://www.vislab.usyd.edu.au/blogs/index.php/2009/05/22/an-headerless-indexed-protocol-for-input-1?blog=61 */
-    //printf("ptrevent: %04x (x=%d, y=%d)\n", buttonMask, x, y);
-
-
-    // Simulate left mouse event as touch event
+  
     static int pressed = 0;
     static int pressed_x = 0;
     static int pressed_y = 0;
-    if (buttonMask == 0 && ! (pressed == 1)) {
-        //printf("flush/n"); 
+    if (buttonMask == 0 && ! (pressed == 1)) {   
         rfbProcessEvents(server, 1000000);
     } 
-
 
     if (buttonMask & 1)
     {
         if (pressed == 1)
         {
             rfbProcessEvents(server, 1000000);
-    //        injectTouchEvent(MouseDrag, x, y, &scrinfo);
-    //        printf("Inject MouseDrag: %04x (x=%d, y=%d)\n", buttonMask, x, y);
         }
         else
         {
@@ -239,7 +222,6 @@ a press and release of button 5.
             pressed_y = y;
 	    
             injectTouchEvent(MousePress, x, y, &scrinfo);
-           // printf("Inject MousePress: %04x (x=%d, y=%d)\n", buttonMask, x, y);
         }
     }
     if (buttonMask == 0)
@@ -248,36 +230,27 @@ a press and release of button 5.
         {
             pressed = 0;
             injectTouchEvent(MouseRelease, x, y, &scrinfo);
-           // printf("Inject MouseRelease: %04x (x=%d, y=%d)\n", buttonMask, x, y);
-    //update_screen();
         }
     }
 }
 
-/*****************************************************************************/
-
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
 {
-//    info_print("Initializing server...\n");
-
     int rbytespp = bits_per_pixel == 1 ? 1 : bytespp;
     int rframe_size = bits_per_pixel == 1 ? frame_size * 8 : frame_size;
-    /* Allocate the VNC server buffer to be managed (not manipulated) by
-     * libvncserver. */
+
     vncbuf = malloc(rframe_size);
     assert(vncbuf != NULL);
     memset(vncbuf, bits_per_pixel == 1 ? 0xFF : 0x00, rframe_size);
 
-    /* Allocate the comparison buffer for detecting drawing updates from frame
-     * to frame. */
     fbbuf = calloc(frame_size, 1);
     assert(fbbuf != NULL);
 
-    /* TODO: This assumes scrinfo.bits_per_pixel is 16. */
     server = rfbGetScreen(&argc, argv, scrinfo.xres, scrinfo.yres, BITS_PER_SAMPLE, SAMPLES_PER_PIXEL, rbytespp);
     assert(server != NULL);
 
-    static const char* passwords[4]={"1","pwd","arsie",0};
+    //passwords
+    static const char* passwords[4]={"1", "pwd", "arsie", 0};
     
     server->authPasswdData = (void*)passwords;
     server->passwordCheck=rfbCheckPasswordByList;
@@ -289,18 +262,17 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server->port = vnc_port;
 
     server->kbdAddEvent = keyevent;
-    server->ptrAddEvent = ptrevent;
-//    if (enable_touch)
-//    {
-//	server->rfbDefaultPtrAddEvent = ptrevent;
-//    }
+    //server->ptrAddEvent = ptrevent;
+
+    if (enable_touch)
+    {
+        server->ptrAddEvent = ptrevent;
+    }
 
     rfbInitServer(server);
 
-    /* Mark as dirty since we haven't sent any updates at all yet. */
     rfbMarkRectAsModified(server, 0, 0, scrinfo.xres, scrinfo.yres);
-    //rfbDefaultPtrAddEvent(0,0,server);
-    /* No idea. */
+
     varblock.r_offset = scrinfo.red.offset + scrinfo.red.length - BITS_PER_SAMPLE;
     varblock.g_offset = scrinfo.green.offset + scrinfo.green.length - BITS_PER_SAMPLE;
     varblock.b_offset = scrinfo.blue.offset + scrinfo.blue.length - BITS_PER_SAMPLE;
@@ -324,8 +296,6 @@ int timeToLogFPS()
     return elapsed > LOG_TIME;
 }
 
-/*****************************************************************************/
-//#define COLOR_MASK  0x1f001f
 #define COLOR_MASK (((1 << BITS_PER_SAMPLE) << 1) - 1)
 #define PIXEL_FB_TO_RFB(p, r_offset, g_offset, b_offset) \
     ((p >> r_offset) & COLOR_MASK) | (((p >> g_offset) & COLOR_MASK) << BITS_PER_SAMPLE) | (((p >> b_offset) & COLOR_MASK) << (2 * BITS_PER_SAMPLE))
@@ -417,10 +387,9 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                     if (pixels != *c)
                     {
                         *c = pixels;
-			int bit;
+                        int bit;
                         for (bit = 0; bit < 8; bit++)
                         {
-                            // *(r+bit) = ((pixels >> (7-bit)) & 0x1) ? 0xFF : 0x00;
                             *(r + bit) = ((pixels >> (7 - bit)) & 0x1) ? 0x00 : 0xFF;
                         }
 
@@ -451,8 +420,6 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
 
         if (memcmp(fbmmap, fbbuf, frame_size) != 0)
         {
-            //        memcpy(fbbuf, fbmmap, size);
-
             int xstep = 4 / bytespp;
 
             int y;
@@ -467,13 +434,6 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                     if (pixel != *c)
                     {
                         *c = pixel;
-
-#if 0
-                /* XXX: Undo the checkered pattern to test the efficiency
-                 * gain using hextile encoding. */
-                if (pixel == 0x18e320e4 || pixel == 0x20e418e3)
-                    pixel = 0x18e318e3;
-#endif
                         if (bytespp == 4)
                         {
                             *r = PIXEL_FB_TO_RFB(pixel,
@@ -515,9 +475,7 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                 }
             }
         }
-    }
-    else if (bits_per_pixel == 16)
-    {
+    } else if (bits_per_pixel == 16) {
         uint16_t *f = (uint16_t *)fbmmap; /* -> framebuffer         */
         uint16_t *c = (uint16_t *)fbbuf;  /* -> compare framebuffer */
         uint16_t *r = (uint16_t *)vncbuf; /* -> remote framebuffer  */
@@ -539,8 +497,7 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
             break;
         }
 
-        if (memcmp(fbmmap, fbbuf, frame_size) != 0)
-        {
+        if (memcmp(fbmmap, fbbuf, frame_size) != 0) {
             int y;
             for (y = 0; y < (int)scrinfo.yres; y++)
             {
@@ -602,35 +559,23 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
                 }
             }
         }
-    }
-    else
-    {
-	//error_print("not supported color depth or rotation\n");
+    } else {
         exit(EXIT_FAILURE);
     }
 
-    if (varblock.min_i < 9999)
-    {
+    if (varblock.min_i < 9999) {
         if (varblock.max_i < 0)
             varblock.max_i = varblock.min_i;
 
         if (varblock.max_j < 0)
             varblock.max_j = varblock.min_j;
-/*
-        debug_print("Dirty page: %dx%d+%d+%d...\n",
-                    (varblock.max_i + 2) - varblock.min_i, (varblock.max_j + 1) - varblock.min_j,
-                    varblock.min_i, varblock.min_j);
-*
-*/
 	
-        rfbMarkRectAsModified(server, varblock.min_i, varblock.min_j,
-                              varblock.max_i + 2, varblock.max_j + 1);
+        rfbMarkRectAsModified(server, varblock.min_i, varblock.min_j, varblock.max_i + 2, varblock.max_j + 1);
 	
         rfbProcessEvents(server, 10000);
     }
 }
 
-/*****************************************************************************/
 
 void print_usage(char **argv)
 {
@@ -666,7 +611,11 @@ int main(int argc, char **argv)
                     break;
                 case 's':
                     i++;
-		    fps=0;
+                    fps=0;
+                    break;
+                case 't':
+                    i++;
+                    trim5 = 1;
                     break;
                 }
             }
@@ -675,56 +624,28 @@ int main(int argc, char **argv)
     }
     
 
- //   info_print("Initializing framebuffer device %s...\n", fb_device);
     init_fb();
-    if (strlen(kbd_device) > 0)
-    {
+    if (strlen(kbd_device) > 0) {
         kbdfd  = init_kbd(kbd_device);
- //       if (!ret)
- //           info_print("Keyboard device %s not available.\n", kbd_device);
-    }
-    else
-    {
-//        info_print("No keyboard device\n");
-    }
-
+     }
+ 
     rfbBool enable_touch = FALSE;
-    if (strlen(touch_device) > 0)
-    {
-        // init touch only if there is a touch device defined
+    if (strlen(touch_device) > 0) {
         int ret = init_touch(touch_device, vnc_rotate);
         enable_touch = (ret > 0);
     }
-    else
-    {
-//        info_print("No touch device\n");
-    }
-/*
-    info_print("Initializing VNC server:\n");
-    info_print("	width:  %d\n", (int)scrinfo.xres);
-    info_print("	height: %d\n", (int)scrinfo.yres);
-    info_print("	bpp:    %d\n", (int)scrinfo.bits_per_pixel);
-    info_print("	port:   %d\n", (int)vnc_port);
-    info_print("	rotate: %d\n", (int)vnc_rotate);
- */  
     init_fb_server(argc, argv, enable_touch);
 
-    /* Implement our own event loop to detect changes in the framebuffer. */
     proc_time = 500000;
 
-    while (1)
-    {
+    for(;;) {
         while (server->clientHead == NULL) {
-	   rfbProcessEvents(server, 100000);
-//           printf("clientHead\n");
-	}
+           rfbProcessEvents(server, 100000);
+        }
         rfbProcessEvents(server, (fps == 0 ? 330000 : 50000) );
-        //rfbProcessEvents(server, 10000 );
-        //printf("update_screeen\n");
         update_screen();
     }
 
-   // info_print("Cleaning up...\n");
     cleanup_fb();
     cleanup_kbd();
     cleanup_touch();
