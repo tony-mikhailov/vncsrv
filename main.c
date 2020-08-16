@@ -180,8 +180,18 @@ static void handler(int sig, siginfo_t *si, void *uc) {
     signal(sig, SIG_IGN);
 }
 
+static rfbKeySym curr_key_proc = 0xFFFFFFFF;
+static int curr_key_stat_proc = -1;
+
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
+
+    if (!(curr_key_proc == -1) && (key != curr_key_proc)) {
+        info_print("pass %d %d %d\n", curr_key_proc, key, down);
+        return;
+    }
+    info_print("keyevent %d %d\n", down, key);
+
     static struct timeval now3 = {0, 0};
     static struct timeval then3 = {0, 0};
 
@@ -199,37 +209,36 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         return;
     }
 
-    int scancode;
+    int scancode = keysym2scancode(key, cl);
 
     int k;
     int left_key;
     int right_key;
 
     for (k = 0; k < SMH4_KEY_COUNT; ++k) {
-
         if (keys[k].code == key && keys[k].down == down) {
             rfbProcessEvents(server, 50000);
             update_screen();
-            
             rfbProcessEvents(server, 500000);
             return;
         } else {
             keys[k].down = down;
         }
-
     }
 
-    if (key == 0xFFC7) {
+    if (key == 0xFFC7) {//F10
         injectKeyEventSeq(down, trim5);
         return;
     }
 
-    scancode = keysym2scancode(key, cl);
-
-    if (scancode) 
-    {
+    if (scancode) {
+        curr_key_proc = key;
+        curr_key_stat_proc = down;
+        if (down == 0) curr_key_proc = -1;
         injectKeyEvent(scancode, down);
-	}
+
+        info_print("inject %d %d\n", down, scancode);
+    }
     ++cnt;
 }
 
