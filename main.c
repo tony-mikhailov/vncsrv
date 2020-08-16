@@ -350,7 +350,7 @@ rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len){
        //if(i>=cl->screen->authPasswdFirstViewOnly) cl->viewOnly=TRUE;
         ++cl_cnt;
         clients_auth_info[cl_cnt - 1].cl = cl;
-        clients_auth_info[cl_cnt - 1].rights = 1;//atoi(auth_tmp) % 2;
+        clients_auth_info[cl_cnt - 1].rights = 1;//todo: set rights based on passwd from auth data here
         return(TRUE);
      }
    }
