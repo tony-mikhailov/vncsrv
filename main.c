@@ -245,7 +245,7 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         }
     }
 
-    if (key == 0xFFC7) {//F10
+    if (key == 0xFFC7 && !(cl->viewOnly)) {//F10
         injectKeyEventSeq(down, trim5);
         return;
     }
@@ -268,7 +268,7 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
 {
     UNUSED(cl);
-    if (x > 479 || y > 271) {
+    if (x > 479 || y > 271 || x < 0 || y < 0) {
         // info_print("ptrevent out ouf range %d %d\n", x, y);
         return;
     }
@@ -281,7 +281,7 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
     // info_print("ptrevent %d(%d) %d(%d) %d(%d) \n", x, pressed_x, y, pressed_y, buttonMask, pressed);
 
     if (buttonMask == 0 && ! (pressed == 1)) {   
-        rfbProcessEvents(server, 1000000);
+        rfbProcessEvents(server, 25000);
         return;
     } 
 
@@ -305,11 +305,37 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
     {
         if (pressed == 1) {
             pressed = 0;
+            pressed_x = x;
+            pressed_y = y;
+
             // info_print("do MouseRelease \n");
             injectTouchEvent(MouseRelease, x, y, &scrinfo);
+            rfbProcessEvents(server, 1000);
         }
     }
 }
+
+rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len){
+   char **passwds;
+   int i=0;
+ 
+   for(passwds=(char**)cl->screen->authPasswdData;*passwds;passwds++,i++) {
+     uint8_t auth_tmp[CHALLENGESIZE];
+     memcpy((char *)auth_tmp, (char *)cl->authChallenge, CHALLENGESIZE);
+     rfbEncryptBytes(auth_tmp, *passwds);
+ 
+     if (memcmp(auth_tmp, response, len) == 0) {
+       if(i>=cl->screen->authPasswdFirstViewOnly)
+         cl->viewOnly=TRUE;
+       return(TRUE);
+     }
+   }
+ 
+   rfbErr("authProcessClientMessage: authentication failed from %s\n",
+          cl->host);
+   return(FALSE);
+ }
+
 
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
 {
@@ -327,9 +353,9 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     assert(server != NULL);
 
     //passwords
-    // static const char* passwords[4]={"1", "pwd", "arsie", 0};
-    // server->authPasswdData = (void*)passwords;
-    // server->passwordCheck=rfbCheckPasswordByList;
+    static const char* passwords[4]={"1", "pwd", "arsie", 0};
+    server->authPasswdData = (void*)passwords;
+    server->passwordCheck=myCheckPasswordByList;
 
     server->desktopName = "Mikhailov's vncsrv";
     server->frameBuffer = (char *)vncbuf;
