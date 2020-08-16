@@ -182,15 +182,17 @@ static void handler(int sig, siginfo_t *si, void *uc) {
 
 static rfbKeySym curr_key_proc = 0xFFFFFFFF;
 static int curr_key_stat_proc = -1;
+static int pass_cnt = 0;
 
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
+    int scancode = keysym2scancode(key, cl);
 
-    if (!(curr_key_proc == -1) && (key != curr_key_proc)) {
-        info_print("pass %d %d %d\n", curr_key_proc, key, down);
+    if (!scancode ||( !(curr_key_proc == -1) && (key != curr_key_proc))) {
+        // info_print("pass %d %d %d\n", curr_key_proc, key, down);
+        rfbProcessEvents(server, 1000000);
         return;
     }
-    info_print("keyevent %d %d\n", down, key);
 
     static struct timeval now3 = {0, 0};
     static struct timeval then3 = {0, 0};
@@ -203,13 +205,30 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 
     elapsed = dnow - dthen;
 
+    // info_print("keyevent %d %d %f\n", down, key, elapsed);
+
     memcpy((char *)&then3, (char *)&now3, sizeof(struct timeval));
-    if (elapsed < 0.1 && (down == 1)) {
-        rfbProcessEvents(server, 50000);
+
+    if (elapsed < 0.05 && (curr_key_proc == key) && (curr_key_stat_proc == down)
+        || (elapsed < 0.1 && down  == 1 )) {
+        ++pass_cnt;
+        // info_print("pass fast keys %d %d %d  pass_cnt %d\n", curr_key_proc, key, down, pass_cnt);
+        if ((pass_cnt % 10) == 0) {
+            rfbProcessEvents(server, 1000);
+            update_screen();
+            rfbProcessEvents(server, 1000);
+
+        } else {
+            rfbProcessEvents(server, 50000);
+        }
         return;
+    } else {
+//        info_print("no pass keys %f %d %d %d %d\n", elapsed, curr_key_proc, key, curr_key_stat_proc, down);
+        //rfbProcessEvents(server, 50000);
+        pass_cnt = 0;
     }
 
-    int scancode = keysym2scancode(key, cl);
+
 
     int k;
     int left_key;
@@ -237,7 +256,10 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         if (down == 0) curr_key_proc = -1;
         injectKeyEvent(scancode, down);
 
-        info_print("inject %d %d\n", down, scancode);
+        // info_print("inject %d %d\n", down, scancode);
+        rfbProcessEvents(server, 1000);
+        update_screen();
+        rfbProcessEvents(server, 1000);
     }
     ++cnt;
 }
@@ -294,10 +316,9 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     assert(server != NULL);
 
     //passwords
-    static const char* passwords[4]={"1", "pwd", "arsie", 0};
-    
-    server->authPasswdData = (void*)passwords;
-    server->passwordCheck=rfbCheckPasswordByList;
+    // static const char* passwords[4]={"1", "pwd", "arsie", 0};
+    // server->authPasswdData = (void*)passwords;
+    // server->passwordCheck=rfbCheckPasswordByList;
 
     server->desktopName = "Mikhailov's vncsrv";
     server->frameBuffer = (char *)vncbuf;
