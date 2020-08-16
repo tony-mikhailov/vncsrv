@@ -13,7 +13,7 @@
  *
  * This project is an adaptation of the original fbvncserver for the iPAQ
  * and Zaurus and then 
- * rewrited by Anton Mikhailov for SMH4, TRIM5, MATRIX by Segnetics industrial PLCs.
+ * rewrited by Anton P. Mikhailov for SMH4, TRIM5, MATRIX by Segnetics industrial PLCs.
  * 
  * 07/2020
  */
@@ -76,6 +76,16 @@ static unsigned int bits_per_pixel;
 static unsigned int frame_size;
 static int trim5 = 0;
 int verbose = 0;
+
+struct auth_info {
+    rfbClientPtr cl;
+    int rights;
+}; 
+
+#define MAX_CL 16
+
+static struct auth_info clients_auth_info[MAX_CL];
+static int cl_cnt = 0;
 
 #define UNUSED(x) (void)(x)
 
@@ -186,6 +196,7 @@ static int pass_cnt = 0;
 
 static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 {
+    // info_print("raw %d %d\n", down, key);
     int scancode = keysym2scancode(key, cl);
 
     if (!scancode ||( !(curr_key_proc == -1) && (key != curr_key_proc))) {
@@ -228,25 +239,36 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         pass_cnt = 0;
     }
 
-
-
     int k;
     int left_key;
     int right_key;
 
-    for (k = 0; k < SMH4_KEY_COUNT; ++k) {
-        if (keys[k].code == key && keys[k].down == down) {
-            rfbProcessEvents(server, 50000);
-            update_screen();
-            rfbProcessEvents(server, 500000);
-            return;
-        } else {
-            keys[k].down = down;
-        }
-    }
+    // for (k = 0; k < SMH4_KEY_COUNT; ++k) {
+    //     if (keys[k].code == key && keys[k].down == down) {
+    //         rfbProcessEvents(server, 50000);
+    //         update_screen();
+    //         rfbProcessEvents(server, 500000);
+    //         return;
+    //     } else {
+    //         keys[k].down = down;
+    //     }
+    // }
 
-    if (key == 0xFFC7 && !(cl->viewOnly)) {//F10
-        injectKeyEventSeq(down, trim5);
+    if (key == 0xFFC7) {//F10
+        int i;
+        int allow_sysmenu = 0;  
+        for (i = 0; i < cl_cnt; ++i) {
+            // info_print("look %d\n", clients_auth_info[i].rights);
+            if (clients_auth_info[i].cl == cl) {
+                allow_sysmenu = clients_auth_info[i].rights;
+                break;
+            }
+        }
+        
+        // info_print("allow_sysmenu %d\n", allow_sysmenu);
+        if (allow_sysmenu == 1) {
+            injectKeyEventSeq(down, trim5);
+        }
         return;
     }
 
@@ -325,20 +347,33 @@ rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len){
      rfbEncryptBytes(auth_tmp, *passwds);
  
      if (memcmp(auth_tmp, response, len) == 0) {
-       if(i>=cl->screen->authPasswdFirstViewOnly)
-         cl->viewOnly=TRUE;
-       return(TRUE);
+       //if(i>=cl->screen->authPasswdFirstViewOnly) cl->viewOnly=TRUE;
+        ++cl_cnt;
+        clients_auth_info[cl_cnt - 1].cl = cl;
+        clients_auth_info[cl_cnt - 1].rights = 1;//atoi(auth_tmp) % 2;
+        return(TRUE);
      }
    }
  
-   rfbErr("authProcessClientMessage: authentication failed from %s\n",
-          cl->host);
+   rfbErr("authProcessClientMessage: authentication failed from %s\n", cl->host);
    return(FALSE);
  }
 
+enum rfbNewClientAction newClientHookF(struct _rfbClientRec* cl) {
+    // info_print("newClientHookF %X\n", cl);
+    return RFB_CLIENT_ACCEPT;
+}
 
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
 {
+    //todo: read and fill auth dta here from file
+    int i;
+    for (i = 0; i < MAX_CL; ++i) {
+        clients_auth_info[i].cl = NULL;
+        clients_auth_info[i].rights = 0;
+    }
+
+
     int rbytespp = bits_per_pixel == 1 ? 1 : bytespp;
     int rframe_size = bits_per_pixel == 1 ? frame_size * 8 : frame_size;
 
@@ -353,7 +388,7 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     assert(server != NULL);
 
     //passwords
-    static const char* passwords[4]={"1", "pwd", "arsie", 0};
+    static const char* passwords[4]={"1", "2", "3", "4", 0};
     server->authPasswdData = (void*)passwords;
     server->passwordCheck=myCheckPasswordByList;
 
@@ -362,6 +397,7 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server->alwaysShared = TRUE;
     server->httpDir = NULL;
     server->port = vnc_port;
+    server->newClientHook = newClientHookF;
 
     server->kbdAddEvent = keyevent;
     //server->ptrAddEvent = ptrevent;
@@ -413,7 +449,7 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
 */
    static int frames = 0;
    frames++;
-   if (timeToLogFPS())
+   if (0 && timeToLogFPS())
    {
        double fps = frames / LOG_TIME;
        info_print("  fps: %f\n", fps);
@@ -752,6 +788,7 @@ int main(int argc, char **argv)
 
     close(1);
     newfd = open("/dev/null", O_WRONLY);
+    rfbLogEnable(FALSE);
 
 
     static int proc_time = 500000;

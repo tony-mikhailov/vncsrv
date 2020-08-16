@@ -173,7 +173,7 @@ int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
     case 0xff54:
         scancode = KEY_DOWN;
         break;
-    case 0xffc7:
+    case 0xffc4:
         scancode = KEY_F7;
         break;
     case 0xff1b:
@@ -199,6 +199,9 @@ int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
         break; 
     case 0xFFC3:
         scancode = KEY_F6;
+        break; 
+    case 0xFFC7:
+        scancode = KEY_F10;
         break; 
     }
 
