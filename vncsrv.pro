@@ -11,5 +11,5 @@ SOURCES += keyboard.c
 SOURCES += touch.c
 
 
-LIBS += -Llib -lvncserver  -lresolv -lz -lgnutls -lgnutlsxx -lgnutls-openssl -lgcrypt -ljpeg -lgpg-error -ltasn1 -lp11 -lp11-kit -lnettle -lhogweed -lgmp -lgmpxx -lffi
+LIBS += -Llib -lvncserver  -lresolv -lz -lgnutls -lgnutlsxx -lgnutls-openssl -lgcrypt -ljpeg -lgpg-error -ltasn1 -lp11 -lp11-kit -lnettle -lhogweed -lgmp -lgmpxx -lffi -lrt
 
