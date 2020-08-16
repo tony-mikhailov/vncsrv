@@ -264,37 +264,48 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
     ++cnt;
 }
 
+
 static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
 {
     UNUSED(cl);
-  
+    if (x > 479 || y > 271) {
+        // info_print("ptrevent out ouf range %d %d\n", x, y);
+        return;
+    }
+
     static int pressed = 0;
     static int pressed_x = 0;
     static int pressed_y = 0;
+    static int mouse_drag_started = 0;
+
+    // info_print("ptrevent %d(%d) %d(%d) %d(%d) \n", x, pressed_x, y, pressed_y, buttonMask, pressed);
+
     if (buttonMask == 0 && ! (pressed == 1)) {   
         rfbProcessEvents(server, 1000000);
+        return;
     } 
 
     if (buttonMask & 1)
     {
         if (pressed == 1)
         {
-            rfbProcessEvents(server, 1000000);
-        }
-        else
-        {
+            injectTouchEvent(MouseDrag, x, y, &scrinfo);
+            rfbProcessEvents(server, 20000);
+
+        } else {
+
             pressed = 1;
+
             pressed_x = x;
             pressed_y = y;
-	    
             injectTouchEvent(MousePress, x, y, &scrinfo);
         }
     }
     if (buttonMask == 0)
     {
-        if (pressed == 1)
-        {
+        if (pressed == 1) {
             pressed = 0;
+            // info_print("do MouseRelease \n");
             injectTouchEvent(MouseRelease, x, y, &scrinfo);
         }
     }
