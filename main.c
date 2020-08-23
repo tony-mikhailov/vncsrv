@@ -45,6 +45,7 @@
 #include "touch.h"
 #include "keyboard.h"
 #include "logging.h"
+#include "ini.h"
 
  #define CLOCKID CLOCK_REALTIME
 #define SIG SIGRTMIN
@@ -81,6 +82,17 @@ struct auth_info {
     rfbClientPtr cl;
     int rights;
 }; 
+
+struct pwd_info {
+    char* pwd;
+    int rights;
+}; 
+
+#define MAX_PASSWORDS 16
+
+static struct pwd_info* pwds_info_data[MAX_PASSWORDS];
+static int pwds_info_count = 0; 
+static char* passwords[MAX_PASSWORDS] = {NULL};
 
 #define MAX_CL 16
 
@@ -265,9 +277,10 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
             }
         }
         
-        // info_print("allow_sysmenu %d\n", allow_sysmenu);
-        if (allow_sysmenu == 1) {
+        if (allow_sysmenu == 2) {
             injectKeyEventSeq(down, trim5);
+        } else {
+
         }
         return;
     }
@@ -338,31 +351,61 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
 }
 
 rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len){
-   char **passwds;
-   int i=0;
- 
-   for(passwds=(char**)cl->screen->authPasswdData;*passwds;passwds++,i++) {
-     uint8_t auth_tmp[CHALLENGESIZE];
-     memcpy((char *)auth_tmp, (char *)cl->authChallenge, CHALLENGESIZE);
-     rfbEncryptBytes(auth_tmp, *passwds);
- 
-     if (memcmp(auth_tmp, response, len) == 0) {
-       //if(i>=cl->screen->authPasswdFirstViewOnly) cl->viewOnly=TRUE;
-        ++cl_cnt;
-        clients_auth_info[cl_cnt - 1].cl = cl;
-        clients_auth_info[cl_cnt - 1].rights = 1;//todo: set rights based on passwd from auth data here
-        return(TRUE);
-     }
-   }
- 
-   rfbErr("authProcessClientMessage: authentication failed from %s\n", cl->host);
-   return(FALSE);
- }
+    char **passwds;
+    int i=0;
 
+    for(passwds=(char**)cl->screen->authPasswdData;*passwds;passwds++,i++) {
+
+
+        uint8_t auth_tmp[CHALLENGESIZE];
+        memcpy((char *)auth_tmp, (char *)cl->authChallenge, CHALLENGESIZE);
+        rfbEncryptBytes(auth_tmp, *passwds);
+
+        int k;
+        
+        if (memcmp(auth_tmp, response, len) == 0) {
+            int rights = 0;
+            for (k = 0; k < pwds_info_count; ++k) {
+                struct pwd_info *ppw_info = pwds_info_data[k];
+                if (strcmp(ppw_info->pwd, *passwds) == 0) {
+                    rights = ppw_info->rights;
+                }
+            }
+            
+            if(rights == 0) cl->viewOnly = TRUE;
+
+            ++cl_cnt;
+            clients_auth_info[cl_cnt - 1].cl = cl;
+            clients_auth_info[cl_cnt - 1].rights = rights;//todo: set rights based on passwd from auth data here
+            return(TRUE);
+        }
+    }
+ 
+    rfbErr("authProcessClientMessage: authentication failed from %s\n", cl->host);
+    return(FALSE);
+}
+void clientGoneF(struct _rfbClientRec* cl) {
+//    info_print("newClientGoneF %X\n", cl);
+    int i;
+    for (i = 0; i < cl_cnt; ++i) {
+        // info_print("look %d\n", clients_auth_info[i].rights);
+        if (clients_auth_info[i].cl == cl) {
+            clients_auth_info[i].cl = NULL;
+            clients_auth_info[i].rights = 0;
+            break;
+        }
+    }
+
+}
 enum rfbNewClientAction newClientHookF(struct _rfbClientRec* cl) {
     // info_print("newClientHookF %X\n", cl);
+    cl->clientGoneHook = clientGoneF;
     return RFB_CLIENT_ACCEPT;
 }
+
+
+
+
 
 static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
 {
@@ -387,8 +430,8 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server = rfbGetScreen(&argc, argv, scrinfo.xres, scrinfo.yres, BITS_PER_SAMPLE, SAMPLES_PER_PIXEL, rbytespp);
     assert(server != NULL);
 
-    //passwords
-    static const char* passwords[4]={"1", "2", "3", "4", 0};
+//    //passwords
+    
     server->authPasswdData = (void*)passwords;
     server->passwordCheck=myCheckPasswordByList;
 
@@ -398,7 +441,6 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     server->httpDir = NULL;
     server->port = vnc_port;
     server->newClientHook = newClientHookF;
-
     server->kbdAddEvent = keyevent;
     //server->ptrAddEvent = ptrevent;
 
@@ -782,17 +824,87 @@ void init_timer(int sec, long long usec) {
     exit(EXIT_SUCCESS);
 }
 
+void add_pwd_info(const char* pwd, int rights) {
+
+    size_t size = strlen(pwd) * sizeof(pwd);
+    char* ppwd = (char*) malloc(size);
+    memcpy(ppwd, pwd, size);
+    passwords[pwds_info_count] = ppwd;
+
+    struct pwd_info *ppw_info = malloc(sizeof(struct pwd_info));
+    ppw_info->pwd = ppwd;
+    ppw_info->rights = rights;
+    pwds_info_data[pwds_info_count] = ppw_info;
+
+    ++pwds_info_count;
+
+
+//     if (rights == 0) {
+//         //pconfig->version = atoi(value);
+//         printf("add admin pwd %s\n", pwd);
+
+// //        memcpy(&passwords[pwds_info_count], pwd, strlen(pwd));
+//         char *ppwd;
+        
+
+//         passwords[pwds_info_count] = ppwd;
+//         // me
+
+//         ++pwds_info_count;
+//     } else if (rights == 1) {
+//         printf("add user pwd %s\n", pwd);
+
+//         memcpy(passwords[pwds_info_count], pwd, strlen(pwd));
+
+//         ++pwds_info_count;
+//     } else if (rights == 2) {
+//         printf("add view_only pwd %s\n", pwd);
+//         memcpy(&passwords[pwds_info_count], pwd, strlen(pwd));
+
+//         ++pwds_info_count;
+//     } else {
+
+//     }
+
+}
+
+static int my_ini_handler(void* user, const char* section, const char* name,
+                   const char* value)
+{   
+   // struct pwds_info_data* pwid = (pwds_info_data*)user;
+    
+    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
+    
+    if (strcmp(section, "admins") == 0) {
+        add_pwd_info(value, 2);
+    } else if (strcmp(section, "users") == 0 ) {
+        add_pwd_info(value, 1);
+    } else if (strcmp(section, "view_only") == 0) {
+        add_pwd_info(value, 0);
+    } else {
+
+    }
+    return 1;
+}
+
 int main(int argc, char **argv)
 {
-    int newfd;
-
-    close(1);
-    newfd = open("/dev/null", O_WRONLY);
-    rfbLogEnable(FALSE);
-
+   int newfd;
+   close(1);
+   newfd = open("/dev/null", O_WRONLY);
+   rfbLogEnable(FALSE);
 
     static int proc_time = 500000;
-    static int fps = 0;    	
+    static int fps = 0;
+
+    if (ini_parse("vncaccess.ini", my_ini_handler, pwds_info_data) < 0) {
+        printf("Can't load 'vncaccess.ini'\n");
+        return 1;
+    } else {
+
+        printf("'vncaccess.ini' loaded\n");
+    }
+
     if (argc > 1)
     {
         int i = 1;
