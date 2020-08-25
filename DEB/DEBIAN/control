@@ -1,0 +1,8 @@
+Package: vncsrv
+Version: 1.0.0
+Section: system
+Priority: standard
+Architecture: armhf
+Maintainer: Anton Mikhailov <anton@mikhailov.center>
+Description: VNC Server optimized for Segnetics devices like SMH4, TRIM5, MATRIX
+ Wow!

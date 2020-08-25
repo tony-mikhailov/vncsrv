@@ -897,12 +897,9 @@ int main(int argc, char **argv)
     static int proc_time = 500000;
     static int fps = 0;
 
-    if (ini_parse("vncaccess.ini", my_ini_handler, pwds_info_data) < 0) {
-        printf("Can't load 'vncaccess.ini'\n");
+    if (ini_parse("/etc/vncaccess.ini", my_ini_handler, pwds_info_data) < 0) {
+        printf("Can't load '/etc/vncaccess.ini'\n");
         return 1;
-    } else {
-
-        printf("'vncaccess.ini' loaded\n");
     }
 
     if (argc > 1)
@@ -935,7 +932,6 @@ int main(int argc, char **argv)
             i++;
         }
     }
-    
 
     init_fb();
     if (strlen(kbd_device) > 0) {

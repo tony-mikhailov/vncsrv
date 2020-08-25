@@ -1,0 +1,30 @@
+#! /bin/bash
+
+### BEGIN INIT INFO
+# Provides:          vncsrv
+# Required-Start:    $local_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: vnc service
+# Description:       Run vncsrv service
+### END INIT INFO
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    echo "Starting vncsrv..."
+    /usr/bin/vncsrv &
+    ;;
+  stop)
+    echo "Stopping vncsrv..."
+    killall vncsrv
+    sleep 2
+    ;;
+  *)
+    echo "Usage: /etc/init.d/vncsrv {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
