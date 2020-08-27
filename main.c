@@ -350,7 +350,7 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
     }
 }
 
-rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len){
+rfbBool myCheckPasswordByList(rfbClientPtr cl,const char* response,int len) {
     char **passwds;
     int i=0;
 
@@ -400,6 +400,15 @@ void clientGoneF(struct _rfbClientRec* cl) {
 enum rfbNewClientAction newClientHookF(struct _rfbClientRec* cl) {
     // info_print("newClientHookF %X\n", cl);
     cl->clientGoneHook = clientGoneF;
+    cl->enableSupportedEncodings = FALSE;
+    cl->enableSupportedMessages = FALSE;
+    cl->enableCursorShapeUpdates = FALSE;
+    cl->useRichCursorEncoding = FALSE;
+    cl->enableKeyboardLedState = FALSE;
+    cl->enableServerIdentity = FALSE;
+    cl->compStreamInitedLZO = FALSE;
+    cl->zlibCompressLevel = 0;
+
     return RFB_CLIENT_ACCEPT;
 }
 
