@@ -4,7 +4,7 @@ CONFIG -= app_bundle
 QT -= gui
 CONFIG  -= QT
 CONFIG -= core
-CONFIG += RELEASE
+CONFIG += DEBUG
 
 INCLUDEPATH += include
 
