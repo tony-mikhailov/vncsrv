@@ -151,7 +151,7 @@ void injectKeyEvent(uint16_t code, uint16_t value)
         error_print("write event failed, %s\n", strerror(errno));
     }
 
-    debug_print("injectKey (%d, %d)\n", code, value);
+    //debug_print("injectKey (%d, %d)\n", code, value);
 }
 
 int keysym2scancode(rfbKeySym key, rfbClientPtr cl)
