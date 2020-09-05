@@ -47,7 +47,7 @@
 #include "logging.h"
 #include "ini.h"
 
- #define CLOCKID CLOCK_REALTIME
+#define CLOCKID CLOCK_REALTIME
 #define SIG SIGRTMIN
 
 #define errExit(msg) do { perror(msg); exit(EXIT_FAILURE); \
@@ -76,7 +76,7 @@ static size_t bytespp;
 static unsigned int bits_per_pixel;
 static unsigned int frame_size;
 static int trim5 = 0;
-int verbose = 0;
+int verbose = 1;
 
 struct auth_info {
     rfbClientPtr cl;
@@ -303,9 +303,18 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
 static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
 {
     UNUSED(cl);
-    if (x > 479 || y > 271 || x < 0 || y < 0) {
-        // info_print("ptrevent out ouf range %d %d\n", x, y);
-        return;
+    if (trim5 == 1) {
+        if (x > 799 || y > 599 || x < 0 || y < 0) {
+            // info_print("ptrevent out ouf range %d %d\n", x, y);
+            return;
+        }
+    
+    } else {
+        if (x > 479 || y > 271 || x < 0 || y < 0) {
+            // info_print("ptrevent out ouf range %d %d\n", x, y);
+            return;
+        }
+        
     }
 
     static int pressed = 0;
@@ -313,8 +322,7 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
     static int pressed_y = 0;
     static int mouse_drag_started = 0;
 
-    // info_print("ptrevent %d(%d) %d(%d) %d(%d) \n", x, pressed_x, y, pressed_y, buttonMask, pressed);
-
+//    printf("ptrevent %d(%d) %d(%d) %d %d \n", x, pressed_x, y, pressed_y, buttonMask, pressed);
     if (buttonMask == 0 && ! (pressed == 1)) {   
         rfbProcessEvents(server, 25000);
         return;
@@ -325,12 +333,12 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
         if (pressed == 1)
         {
             injectTouchEvent(MouseDrag, x, y, &scrinfo);
+
             rfbProcessEvents(server, 20000);
 
         } else {
 
             pressed = 1;
-
             pressed_x = x;
             pressed_y = y;
             injectTouchEvent(MousePress, x, y, &scrinfo);
@@ -339,6 +347,7 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
     if (buttonMask == 0)
     {
         if (pressed == 1) {
+
             pressed = 0;
             pressed_x = x;
             pressed_y = y;
@@ -450,6 +459,16 @@ static void init_fb_server(int argc, char **argv, rfbBool enable_touch)
     }
 
     rfbInitServer(server);
+
+    //debug_print("scrinfo.xres %d, scrinfo.yres %d\n",scrinfo.xres, scrinfo.yres);
+    if (scrinfo.xres == 800 && scrinfo.yres == 480) {
+        trim5 = 1;
+        info_print("trim5 detected\n");
+    } else {
+        info_print("NO trim5 detected\n");
+        trim5 = 0;
+    }
+    
 
     rfbMarkRectAsModified(server, 0, 0, scrinfo.xres, scrinfo.yres);
 
@@ -752,7 +771,11 @@ if (pass_update_screen == 0 && !timeToLogFPS()) {
 	
         rfbMarkRectAsModified(server, varblock.min_i, varblock.min_j, varblock.max_i + 2, varblock.max_j + 1);
 	
-        rfbProcessEvents(server, 10000);
+        if (trim5 == 1) {
+            rfbProcessEvents(server, 90000);
+        } else {
+            rfbProcessEvents(server, 10000);
+        }
     }
 }
 
@@ -889,14 +912,16 @@ static int my_ini_handler(void* user, const char* section, const char* name,
 
 int main(int argc, char **argv)
 {
-   int newfd;
-   close(1);
-   newfd = open("/dev/null", O_WRONLY);
-   rfbLogEnable(FALSE);
+    /*
+//    int newfd;
+//    close(1);
+//    newfd = open("/dev/null", O_WRONLY);
+    */
+
+    rfbLogEnable(FALSE);
 
     static int proc_time = 500000;
     static int fps = 0;
-
     if (ini_parse("/etc/vncaccess.ini", my_ini_handler, pwds_info_data) < 0) {
         printf("Can't load '/etc/vncaccess.ini'\n");
         return 1;
@@ -945,13 +970,20 @@ int main(int argc, char **argv)
     }
     init_fb_server(argc, argv, enable_touch);
 
-    proc_time = 500000;
+
+
+    if (trim5 == 1) {
+        proc_time = 200000;
+    } else {
+        proc_time = (fps == 0 ? 330000 : 50000);
+    }
 
     for(;;) {
         while (server->clientHead == NULL) {
            rfbProcessEvents(server, 100000);
         }
-        rfbProcessEvents(server, (fps == 0 ? 330000 : 50000) );
+        
+        rfbProcessEvents(server, proc_time);
         update_screen();
     }
 

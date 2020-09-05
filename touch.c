@@ -29,6 +29,10 @@ static int xmin, xmax;
 static int ymin, ymax;
 static int rotate;
 static int trkg_id = -1;
+static volatile int last_x = -1;
+static volatile int last_y = -1;
+static volatile int last_x_k = -1;
+static volatile int last_y_k = -1;
 
 int init_touch(const char *touch_device, int vnc_rotate)
 {
@@ -71,32 +75,32 @@ void cleanup_touch()
 void injectTouchEvent(enum MouseAction mouseAction, int x, int y, struct fb_var_screeninfo *scrinfo)
 {
     struct input_event ev;
-    int xin = x;
-    int yin = y;
 
-    switch (rotate)
-    {
-    case 90:
-        x = yin;
-        y = scrinfo->yres - 1 - xin;
-        break;
-    case 180:
-        x = scrinfo->xres - 1 - xin;
-        y = scrinfo->yres - 1 - yin;
-        break;
-    case 270:
-        x = scrinfo->xres - 1 - yin;
-        y = xin;
-        break;
+
+    if (x == last_x) {
+        x = x + last_x_k;
+        if (x > 799) x-=2;
     }
+
+    if (y == last_y) {
+        y = y + last_y_k;
+        if (y > 599) y-=2;
+    }
+
+    last_x = x;
+    last_y = y;
+
+    last_y_k *= -1;
+
+    //info_print("x %d, y %d\n", x, y);
 
     // Calculate the final x and y
     /* Fake touch screen always reports zero */
-    //???//if (xmin != 0 && xmax != 0 && ymin != 0 && ymax != 0)
-    {
-        x = xmin + (x * (xmax - xmin)) / (scrinfo->xres);
-        y = ymin + (y * (ymax - ymin)) / (scrinfo->yres);
-    }
+    // if (xmin != 0 && xmax != 0 && ymin != 0 && ymax != 0)
+    // {
+    //     x = xmin + (x * (xmax - xmin)) / (scrinfo->xres);
+    //     y = ymin + (y * (ymax - ymin)) / (scrinfo->yres);
+    // }sd
 
     memset(&ev, 0, sizeof(ev));
 
@@ -104,6 +108,7 @@ void injectTouchEvent(enum MouseAction mouseAction, int x, int y, struct fb_var_
     bool sendTouch;
     int trkIdValue;
     int touchValue;
+
     switch (mouseAction)
     {
     case MousePress:
@@ -113,14 +118,18 @@ void injectTouchEvent(enum MouseAction mouseAction, int x, int y, struct fb_var_
         touchValue = 1;
         break;
     case MouseRelease:
-        sendPos = false;
+//!tony        sendPos = false;
+        sendPos = true;
         sendTouch = true;
         trkIdValue = -1;
         touchValue = 0;
         break;
     case MouseDrag:
         sendPos = true;
-        sendTouch = false;
+        sendTouch = true;
+        touchValue = 1;
+        trkIdValue = 0;
+//!tony        sendTouch = false;
         break;
     default:
         error_print("invalid mouse action\n");
@@ -202,5 +211,5 @@ void injectTouchEvent(enum MouseAction mouseAction, int x, int y, struct fb_var_
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
-    debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", xin, yin, x, y, mouseAction);
+ //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
