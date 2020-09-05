@@ -75,7 +75,9 @@ static rfbScreenInfoPtr server;
 static size_t bytespp;
 static unsigned int bits_per_pixel;
 static unsigned int frame_size;
-static int trim5 = 0;
+
+int trim5 = 0;
+int matrix = 0;
 int verbose = 1;
 
 struct auth_info {
@@ -278,14 +280,21 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         }
         
         if (allow_sysmenu == 2) {
-            injectKeyEventSeq(down, trim5);
+            if (trim5 == 1) {
+                //injectTouchEvent(MousePress, 300, 535, &scrinfo);
+                injectTouchEvent(MouseRelease, 300, 535, &scrinfo);
+                //debug_print("trim5 menu\n");
+            } else {
+                injectKeyEventSeq(down, matrix);
+
+            }
         } else {
 
         }
         return;
     }
 
-    if (scancode) {
+    if ((trim5 != 1) && scancode) {
         curr_key_proc = key;
         curr_key_stat_proc = down;
         if (down == 0) curr_key_proc = -1;
@@ -961,6 +970,10 @@ int main(int argc, char **argv)
                     i++;
                     trim5 = 1;
                     break;
+                case 'm':
+                    i++;
+                    matrix = 1;
+                    break;
                 }
             }
             i++;
@@ -970,7 +983,7 @@ int main(int argc, char **argv)
     init_fb();
     if (strlen(kbd_device) > 0) {
         kbdfd  = init_kbd(kbd_device);
-     }
+    }
  
     rfbBool enable_touch = FALSE;
     if (strlen(touch_device) > 0) {

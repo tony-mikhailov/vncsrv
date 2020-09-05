@@ -25,6 +25,7 @@
 
 //static char KBD_DEVICE[256] = "/dev/input/event1";
 static int kbdfd = -1;
+extern int trim5;
 
 int init_kbd(const char *kbd_device)
 {
@@ -48,12 +49,12 @@ void cleanup_kbd()
     }
 }
 
-void injectKeyEventSeq(uint16_t value, int trim5)
+void injectKeyEventSeq(uint16_t value, int matrix)
 {
 
     if (value == 0) return;
 
-    if (trim5 == 1) {
+    if (matrix == 1) {
         struct input_event ev;
         memset(&ev, 0, sizeof(ev));
 
@@ -129,26 +130,31 @@ void injectKeyEventSeq(uint16_t value, int trim5)
 
 void injectKeyEvent(uint16_t code, uint16_t value)
 {
-    struct input_event ev;
-    memset(&ev, 0, sizeof(ev));
+    if (trim5 == 1) {
 
-    gettimeofday(&ev.time, 0);
-    ev.type = EV_KEY;
-    ev.code = code;
-    ev.value = value;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0)
-    {
-        error_print("write event failed, %s\n", strerror(errno));
-    }
 
-    // Finally send the SYN
-    gettimeofday(&ev.time, 0);
-    ev.type = EV_SYN;
-    ev.code = 0;
-    ev.value = 0;
-    if (write(kbdfd, &ev, sizeof(ev)) < 0)
-    {
-        error_print("write event failed, %s\n", strerror(errno));
+    } else {
+        struct input_event ev;
+        memset(&ev, 0, sizeof(ev));
+
+        gettimeofday(&ev.time, 0);
+        ev.type = EV_KEY;
+        ev.code = code;
+        ev.value = value;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0)
+        {
+            error_print("write event failed, %s\n", strerror(errno));
+        }
+
+        // Finally send the SYN
+        gettimeofday(&ev.time, 0);
+        ev.type = EV_SYN;
+        ev.code = 0;
+        ev.value = 0;
+        if (write(kbdfd, &ev, sizeof(ev)) < 0)
+        {
+            error_print("write event failed, %s\n", strerror(errno));
+        }
     }
 
     //debug_print("injectKey (%d, %d)\n", code, value);
