@@ -281,17 +281,14 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         
         if (allow_sysmenu == 2) {
             if (trim5 == 1) {
-                //injectTouchEvent(MousePress, 300, 535, &scrinfo);
-                injectTouchEvent(MouseRelease, 300, 535, &scrinfo);
-                //debug_print("trim5 menu\n");
+                trim5SysMenu(&scrinfo);
+                return;
             } else {
                 injectKeyEventSeq(down, matrix);
-
+                return;
             }
         } else {
-
         }
-        return;
     }
 
     if ((trim5 != 1) && scancode) {
@@ -304,6 +301,16 @@ static void keyevent(rfbBool down, rfbKeySym key, rfbClientPtr cl)
         rfbProcessEvents(server, 1000);
         update_screen();
         rfbProcessEvents(server, 1000);
+    } else if (trim5 == 1) {
+        if (key == 0xFFbe) {//F1??
+            trim5Info(&scrinfo);
+        } else if (key == 0xFFbf) { // F2
+            trim5Home(&scrinfo);
+        } else if (key == 0xFFC2) { // F5
+            trim5Start(&scrinfo);
+        } else if (key == 0xFFC4) { // F7
+            trim5Menu(&scrinfo);
+        }
     }
     ++cnt;
 }
@@ -318,7 +325,7 @@ static void ptrevent(int buttonMask, int x, int y, rfbClientPtr cl)
             return;
         }
     
-    } else {
+    } else if (matrix == 0) {
         if (x > 479 || y > 271 || x < 0 || y < 0) {
             // info_print("ptrevent out ouf range %d %d\n", x, y);
             return;

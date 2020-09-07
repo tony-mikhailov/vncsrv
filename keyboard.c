@@ -89,7 +89,7 @@ void injectKeyEventSeq(uint16_t value, int matrix)
             printf("write event failed, %s\n", strerror(errno));
         }
 
-    } else {
+    } else if (trim5 == 0) {
         struct input_event ev;
         memset(&ev, 0, sizeof(ev));
 
@@ -123,6 +123,9 @@ void injectKeyEventSeq(uint16_t value, int matrix)
         if (write(kbdfd, &ev, sizeof(ev)) < 0) {
             printf("write event failed, %s\n", strerror(errno));
         }
+    } else if (trim5 == 1) {
+        
+
     }
 
 }
