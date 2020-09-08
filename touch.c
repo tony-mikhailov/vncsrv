@@ -237,16 +237,16 @@ void trim5SysMenu(struct fb_var_screeninfo *scrinfo)
         error_print("write event failed, %s\n", strerror(errno));
     }
 
-    // Then send a BTN_TOUCH
+    // Then send a KEY_MENU
     gettimeofday(&ev.time, 0);
     ev.type = EV_KEY;
-    ev.code = BTN_TOUCH;
+    ev.code = KEY_MENU;
     ev.value = 1;
     if (write(touchfd, &ev, sizeof(ev)) < 0)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
-
+/*
     // Then send a ABS_MT_POSITION_X
     gettimeofday(&ev.time, 0);
     ev.type = EV_ABS;
@@ -330,7 +330,7 @@ void trim5SysMenu(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
-
+*/
 
     // Finally send the SYN
     gettimeofday(&ev.time, 0);
@@ -341,6 +341,26 @@ void trim5SysMenu(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
+
+        // Then send a BTN_TOUCH
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_KEY;
+    ev.code = KEY_MENU;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_SYN;
+    ev.code = 0;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
  //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
 
@@ -369,7 +389,7 @@ void trim5Menu(struct fb_var_screeninfo *scrinfo)
     // Then send a BTN_TOUCH
     gettimeofday(&ev.time, 0);
     ev.type = EV_KEY;
-    ev.code = BTN_TOUCH;
+    ev.code = KEY_F4;
     ev.value = 1;
     if (write(touchfd, &ev, sizeof(ev)) < 0)
     {
@@ -432,6 +452,25 @@ void trim5Menu(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_KEY;
+    ev.code = KEY_F4;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_SYN;
+    ev.code = 0;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
  //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
 
@@ -459,7 +498,7 @@ void trim5Home(struct fb_var_screeninfo *scrinfo)
     // Then send a BTN_TOUCH
     gettimeofday(&ev.time, 0);
     ev.type = EV_KEY;
-    ev.code = BTN_TOUCH;
+    ev.code = KEY_F2;
     ev.value = 1;
     if (write(touchfd, &ev, sizeof(ev)) < 0)
     {
@@ -522,6 +561,25 @@ void trim5Home(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_KEY;
+    ev.code = KEY_F2;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_SYN;
+    ev.code = 0;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
  //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
 
@@ -550,7 +608,7 @@ void trim5Info(struct fb_var_screeninfo *scrinfo)
     // Then send a BTN_TOUCH
     gettimeofday(&ev.time, 0);
     ev.type = EV_KEY;
-    ev.code = BTN_TOUCH;
+    ev.code = KEY_F1;
     ev.value = 1;
     if (write(touchfd, &ev, sizeof(ev)) < 0)
     {
@@ -613,6 +671,26 @@ void trim5Info(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
+
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_KEY;
+    ev.code = KEY_F1;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
+    // Finally send the SYN
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_SYN;
+    ev.code = 0;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
  //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
 
@@ -640,7 +718,7 @@ void trim5Start(struct fb_var_screeninfo *scrinfo)
     // Then send a BTN_TOUCH
     gettimeofday(&ev.time, 0);
     ev.type = EV_KEY;
-    ev.code = BTN_TOUCH;
+    ev.code = KEY_F3;
     ev.value = 1;
     if (write(touchfd, &ev, sizeof(ev)) < 0)
     {
@@ -703,5 +781,26 @@ void trim5Start(struct fb_var_screeninfo *scrinfo)
     {
         error_print("write event failed, %s\n", strerror(errno));
     }
+
+        // Then send a BTN_TOUCH
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_KEY;
+    ev.code = KEY_F3;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
+    // Finally send the SYN
+    gettimeofday(&ev.time, 0);
+    ev.type = EV_SYN;
+    ev.code = 0;
+    ev.value = 0;
+    if (write(touchfd, &ev, sizeof(ev)) < 0)
+    {
+        error_print("write event failed, %s\n", strerror(errno));
+    }
+
  //   debug_print("injectTouchEvent (screen(%d,%d) -> touch(%d,%d), mouse=%d)\n", x, y, mouseAction);
 }
