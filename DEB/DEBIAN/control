@@ -1,5 +1,5 @@
 Package: vncsrv
-Version: 1.0.3
+Version: 1.1.0
 Section: system
 Priority: standard
 Architecture: armhf
